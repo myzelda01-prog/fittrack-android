@@ -101,7 +101,7 @@ KV = """
         padding: 25
         spacing: 20
         Label:
-            text: "FITTRACK AI"
+            text: "FITTRACK"
             font_size: '32sp'
             bold: True
             size_hint_y: None

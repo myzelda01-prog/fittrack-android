@@ -58,7 +58,7 @@ def find_font(size):
     return ImageFont.load_default()
 
 font = find_font(int(SIZE * 0.10))
-text = "FITTRACK AI"
+text = "FITTRACK"
 bbox = d.textbbox((0, 0), text, font=font)
 tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
 d.text(((SIZE - tw) / 2 - bbox[0], cy + plate_r + 80),
