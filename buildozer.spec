@@ -30,10 +30,11 @@ android.numeric_version = 1
 # the Gemini REST API directly via urllib (built-in), avoiding grpcio /
 # protobuf C-extensions that break on Android.
 #
-# python3 is unpinned — p4a requires the host Python (in the
-# kivy/buildozer:v1.5.0 image, that's Python 3.11) to match the
-# build Python, so letting p4a use the host's version is required.
-requirements = python3, kivy, pillow, plyer
+# python3 is pinned to 3.11.13 because the default (3.14) is too new
+# for Pillow/kivy wheels to exist yet, and p4a's hostpython3 ends up
+# creating a Python 3.14 venv that pip can't find packages for.
+# kivy/pillow/plyer versions are pinned to ones with wheels for 3.11.
+requirements = python3==3.11.13, kivy==2.3.1, pillow==10.4.0, plyer==2.1.0
 
 # ---------------- Permissions ----------------
 # CAMERA       -> open the device camera to scan food
