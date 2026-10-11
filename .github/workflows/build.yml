@@ -47,39 +47,49 @@ jobs:
 
       - name: Install Android command-line tools and accept SDK licenses
         env:
+          ANDROIDSDK: ${{ github.workspace }}/.android-sdk
           ANDROID_HOME: ${{ github.workspace }}/.android-sdk
           ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
         run: |
           set -e
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
-          cd "$ANDROID_HOME/cmdline-tools"
-          # Latest stable command-line tools
+          SDK="$ANDROIDSDK"
+          mkdir -p "$SDK/cmdline-tools"
+          cd "$SDK/cmdline-tools"
           curl -fsSL -o tools.zip \
             https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -q tools.zip
           rm tools.zip
-          # The zip extracts to ./cmdline-tools/* — move so we have ./latest/bin/sdkmanager
-          if [ -d latest ] && [ ! -d latest/bin ]; then
-            # already correct layout
-            :
-          elif [ -d cmdline-tools ]; then
+          # Normalize layout: we want $SDK/latest/bin/sdkmanager (not $SDK/cmdline-tools/bin/...)
+          if [ -d cmdline-tools ]; then
             mkdir -p latest
+            shopt -s dotglob nullglob
             mv cmdline-tools/* latest/ 2>/dev/null || true
-            rmdir cmdline-tools 2>/dev/null || true
+            rmdir cmdline-tools || true
           fi
-          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin"
-          # Auto-accept every license Buildozer will need.
+          export PATH="$PATH:$SDK/latest/bin"
+          # Tell sdkmanager everything is accepted.
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          echo "Android SDK licenses accepted."
+          # Belt and suspenders: write the well-known accepted license hashes
+          # directly into the licenses/ directory. Some Buildozer/p4a versions
+          # check this file before invoking sdkmanager.
+          mkdir -p "$SDK/licenses"
+          cat > "$SDK/licenses/android-sdk-license" <<EOF
+
+8933bad161af4178b1185d1a37fbf41ea5269c55
+d56f5187479451eabf01fb78af6dfcb131a6481e
+2433f8a3435a7489f644e5f1d78b16a7c9aa9b87
+EOF
+          echo "Android SDK licenses accepted at $SDK"
 
       - name: Build debug APK with Buildozer
         env:
+          ANDROIDSDK: ${{ github.workspace }}/.android-sdk
           ANDROID_HOME: ${{ github.workspace }}/.android-sdk
           ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
           GRADLE_OPTS: "-Xmx2g -Dorg.gradle.daemon=false"
         run: |
           # Buildozer writes the APK to ./bin/ — that's what we upload.
-          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin"
+          export PATH="$PATH:$ANDROIDSDK/latest/bin"
           buildozer -v android debug 2>&1 | tee build.log
 
       - name: Find APK output
