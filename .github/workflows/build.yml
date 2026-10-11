@@ -7,25 +7,34 @@ on:
 
 jobs:
   build:
-    # Run inside the official Kivy Buildozer image, which has Buildozer,
-       # Android SDK (with licenses pre-accepted), NDK, JDK, and all required
-       # system packages pre-installed. This is the Kivy team's recommended
-       # CI setup and avoids the path/license quirks of installing everything
-       # from scratch on a plain ubuntu-latest runner.
+    # The kivy/buildozer:latest image ships Python 3.14, whose bundled pip
+    # is incompatible with python-for-android's venv setup
+    # (ImportError: BuildDependencyInstallError). So we build our own
+    # image based on Ubuntu 22.04 with Python 3.11 + Buildozer + everything
+    # Buildozer needs, then run the build inside it via docker run.
     runs-on: ubuntu-latest
-    container:
-      image: kivy/buildozer:v1.5.0
     timeout-minutes: 90
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Build debug APK with Buildozer
+      - name: Build custom Buildozer image (cached between runs)
         run: |
-          # The kivy/buildozer image runs as root; Buildozer prompts before
-          # continuing. Pipe 'yes' to auto-answer.
-          yes | buildozer -v android debug 2>&1 | tee build.log
+          docker build \
+            --cache-from fittrack-buildozer:latest \
+            --tag fittrack-buildozer:latest \
+            --file Dockerfile \
+            .
+
+      - name: Build APK in container
+        run: |
+          docker run --rm \
+            --volume "${{ github.workspace }}:/workspace" \
+            --workdir /workspace \
+            --env GRADLE_OPTS="-Xmx2g -Dorg.gradle.daemon=false" \
+            fittrack-buildozer:latest \
+            bash -c "yes | buildozer -v android debug 2>&1 | tee build.log"
 
       - name: Find APK output
         id: locate
