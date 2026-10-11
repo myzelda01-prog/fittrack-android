@@ -59,7 +59,6 @@ jobs:
             https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -q tools.zip
           rm tools.zip
-          # Normalize layout: we want $SDK/latest/bin/sdkmanager (not $SDK/cmdline-tools/bin/...)
           if [ -d cmdline-tools ]; then
             mkdir -p latest
             shopt -s dotglob nullglob
@@ -67,18 +66,9 @@ jobs:
             rmdir cmdline-tools || true
           fi
           export PATH="$PATH:$SDK/latest/bin"
-          # Tell sdkmanager everything is accepted.
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          # Belt and suspenders: write the well-known accepted license hashes
-          # directly into the licenses/ directory. Some Buildozer/p4a versions
-          # check this file before invoking sdkmanager.
           mkdir -p "$SDK/licenses"
-          cat > "$SDK/licenses/android-sdk-license" <<EOF
-
-8933bad161af4178b1185d1a37fbf41ea5269c55
-d56f5187479451eabf01fb78af6dfcb131a6481e
-2433f8a3435a7489f644e5f1d78b16a7c9aa9b87
-EOF
+          printf '\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n2433f8a3435a7489f644e5f1d78b16a7c9aa9b87\n' > "$SDK/licenses/android-sdk-license"
           echo "Android SDK licenses accepted at $SDK"
 
       - name: Build debug APK with Buildozer
