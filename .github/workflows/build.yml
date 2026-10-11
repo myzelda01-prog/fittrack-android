@@ -24,21 +24,19 @@ jobs:
       - name: Install liblzma-dev (needed by Python's _lzmamodule)
         run: apt-get update && apt-get install -y --no-install-recommends liblzma-dev && rm -rf /var/lib/apt/lists/*
 
-      # p4a hardcodes Pillow==11.3.0 (and pyjnius==1.7.0, kivy==2.3.1)
-      # in its pymodules install code, but 11.3.0 has no Python 3.14
-      # wheels (pip can't find a matching distribution). Buildozer
-      # 1.5.0 doesn't honour p4a.source_dir, so we have to pre-populate
-      # the directory where buildozer clones p4a and patch it in place.
+      # p4a hardcodes Pillow==11.3.0 in its pymodules install code, but
+      # 11.3.0 has no Python 3.14 wheels. Buildozer 1.5.0 doesn't
+      # honour p4a.source_dir, so we have to pre-populate the directory
+      # where buildozer clones p4a and patch it in place.
       - name: Pre-populate + patch python-for-android clone
         run: |
           set -e
-          # The directory buildozer clones p4a into
           P4A_DIR="$GITHUB_WORKSPACE/.buildozer/android/platform/python-for-android"
           mkdir -p "$(dirname "$P4A_DIR")"
-          # Clone p4a into the exact path buildozer uses
           git clone --depth 1 --branch master \
             https://github.com/kivy/python-for-android.git "$P4A_DIR"
-          # Bump ALL hardcoded Pillow/pyjnius/kivy versions
+          # Bump only Pillow and pyjnius (the bare "cython" string must
+          # NOT be changed — it's used for `python -m cython` invocations).
           find "$P4A_DIR" -type f -name '*.py' -exec sed -i \
             -e 's/Pillow==11\.3\.0/Pillow==11.4.0/g' \
             -e 's/Pillow==11\.0\.0/Pillow==11.4.0/g' \
@@ -46,20 +44,26 @@ jobs:
             -e 's/pyjnius==1\.7\.0/pyjnius==1.7.1/g' \
             -e 's/"kivy==2\.3\.1"/"kivy"/g' \
             {} +
-          # Pin Cython below 3 because p4a's vendored pyjnius uses the
-          # deprecated Cython `IF` statement removed in Cython 3
+          # Bump Cython version constraint in pip-install strings only
+          # (not in `python -m cython` module calls)
           find "$P4A_DIR" -type f -name '*.py' -exec sed -i \
             -e 's/"cython>=0\.29\.19"/"cython<3.0"/g' \
+            -e "s/'cython>=0\.29\.19'/'cython<3.0'/g" \
             -e 's/"cython>=0\.29"/"cython<3.0"/g' \
-            -e 's/"cython"/"cython<3.0"/g' \
-            -e "s/'cython'/'cython<3.0'/g" \
+            -e "s/'cython>=0\.29'/'cython<3.0'/g" \
             {} +
           echo "=== Pillow references AFTER patch ==="
           grep -rn 'Pillow==' "$P4A_DIR" || echo "(no matches — clean)"
           echo "=== pyjnius references AFTER patch ==="
           grep -rn 'pyjnius==' "$P4A_DIR" || echo "(no matches — clean)"
-          echo "=== cython references AFTER patch ==="
-          grep -rn "'cython\|\"cython" "$P4A_DIR" | head -10 || echo "(no matches — clean)"
+
+      # Install Cython<3 in the kivy/buildozer venv (p4a's vendored
+      # pyjnius uses the deprecated `IF` Cython statement removed in
+      # Cython 3). We don't patch p4a for cython because the bare
+      # "cython" string is also used in `python -m cython` invocations
+      # which break if we rewrite the module name.
+      - name: Install Cython <3 in the runner venv
+        run: pip install --upgrade 'cython<3.0'
 
       - name: Build debug APK with Buildozer
         run: |
