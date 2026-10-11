@@ -41,8 +41,8 @@ requirements = python3, kivy, pillow, plyer
 android.permissions = CAMERA, INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE
 
 # ---------------- Android API levels ----------------
-android.api = 33          # compileSdkVersion
-android.minapi = 21       # minSdkVersion (Android 5.0 Lollipop)
+android.api = 33
+android.minapi = 21
 android.target_api = 33
 
 # ---------------- Architecture ----------------
