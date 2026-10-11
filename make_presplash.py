@@ -64,16 +64,6 @@ tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
 d.text(((SIZE - tw) / 2 - bbox[0], cy + plate_r + 80),
        text, font=font, fill=WHITE)
 
-# Cyan accent underline
-line_w = int(SIZE * 0.16)
-line_h = max(4, int(SIZE * 0.008))
-line_y = int(cy + plate_r + 80 + th + 30)
-d.rounded_rectangle(
-    [(SIZE - line_w) / 2, line_y,
-     (SIZE + line_w) / 2, line_y + line_h],
-    radius=line_h // 2, fill=CYAN,
-)
-
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "presplash.png")
 img.save(out, "PNG")
 print(f"wrote {out}  ({os.path.getsize(out)} bytes)")
