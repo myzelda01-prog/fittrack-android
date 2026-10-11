@@ -23,7 +23,9 @@ jobs:
 
       - name: Build debug APK with Buildozer
         run: |
-          buildozer -v android debug 2>&1 | tee build.log
+          # The kivy/buildozer image runs as root; Buildozer prompts before
+          # continuing. Pipe 'yes' to auto-answer.
+          yes | buildozer -v android debug 2>&1 | tee build.log
 
       - name: Find APK output
         id: locate
