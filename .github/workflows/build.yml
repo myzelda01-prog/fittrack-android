@@ -7,34 +7,59 @@ on:
 
 jobs:
   build:
-    # The kivy/buildozer:latest image ships Python 3.14, whose bundled pip
-    # is incompatible with python-for-android's venv setup
-    # (ImportError: BuildDependencyInstallError). So we build our own
-    # image based on Ubuntu 22.04 with Python 3.11 + Buildozer + everything
-    # Buildozer needs, then run the build inside it via docker run.
+    # Use the official kivy/buildozer:latest image. It has Python 3.14,
+    # buildozer 1.5.0, OpenJDK 17, Android SDK + NDK, and licenses
+    # pre-accepted. python3 is left unpinned so it matches p4a's
+    # hostpython3 (both are 3.14) — that was the version-mismatch
+    # blocker with our custom Ubuntu image.
     runs-on: ubuntu-latest
+    container:
+      image: kivy/buildozer:latest
     timeout-minutes: 90
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Build custom Buildozer image (cached between runs)
-        run: |
-          docker build \
-            --cache-from fittrack-buildozer:latest \
-            --tag fittrack-buildozer:latest \
-            --file Dockerfile \
-            .
+      - name: Install liblzma-dev (needed by Python's _lzmamodule)
+        run: apt-get update && apt-get install -y --no-install-recommends liblzma-dev && rm -rf /var/lib/apt/lists/*
 
-      - name: Build APK in container
+      # p4a hardcodes Pillow==11.3.0 in its pymodules install code, but
+      # 11.3.0 has no Python 3.14 wheels (pip can't find a matching
+      # distribution). We pre-clone p4a, sed the version, and tell
+      # buildozer to use the patched copy via p4a.source_dir.
+      - name: Clone + patch python-for-android
         run: |
-          docker run --rm \
-            --volume "${{ github.workspace }}:/workspace" \
-            --workdir /workspace \
-            --env GRADLE_OPTS="-Xmx2g -Dorg.gradle.daemon=false" \
-            fittrack-buildozer:latest \
-            bash -c "yes | buildozer -v android debug 2>&1 | tee build.log"
+          set -e
+          git clone --depth 1 --branch master \
+            https://github.com/kivy/python-for-android.git /opt/p4a-patched
+          # Bump p4a's hardcoded Pillow to 11.4.0+ which has 3.14 wheels
+          sed -i 's/Pillow==11\.3\.0/Pillow==11.4.0/g' /opt/p4a-patched/pythonforandroid/build.py
+          # Pin Cython below 3 because p4a's vendored pyjnius uses the
+          # deprecated Cython `IF` statement removed in Cython 3
+          sed -i 's/"cython>=0\.29\.19"/"cython<3.0"/g' /opt/p4a-patched/pythonforandroid/bootstraps/sdl2/dependencies.py || true
+          sed -i 's/"cython>=0\.29"/"cython<3.0"/g' /opt/p4a-patched/pythonforandroid/bootstraps/sdl2/dependencies.py || true
+          sed -i 's/"cython"/"cython<3.0"/g' /opt/p4a-patched/pythonforandroid/bootstraps/sdl2/dependencies.py || true
+          # Verify the patch landed
+          grep -n 'Pillow==' /opt/p4a-patched/pythonforandroid/build.py || true
+          grep -n 'cython' /opt/p4a-patched/pythonforandroid/bootstraps/sdl2/dependencies.py || true
+          echo "p4a source dir: /opt/p4a-patched"
+
+      - name: Tell buildozer to use the patched p4a
+        run: |
+          # Add p4a.source_dir to the spec so buildozer uses our patched copy
+          # instead of cloning its own.
+          if ! grep -q '^p4a.source_dir' buildozer.spec; then
+            echo '' >> buildozer.spec
+            echo '# Use our pre-patched p4a' >> buildozer.spec
+            echo 'p4a.source_dir = /opt/p4a-patched' >> buildozer.spec
+          fi
+          tail -3 buildozer.spec
+
+      - name: Build debug APK with Buildozer
+        run: |
+          # Pipe 'yes' to auto-answer the root-warning prompt (image runs as root)
+          yes | buildozer -v android debug 2>&1 | tee build.log
 
       - name: Find APK output
         id: locate
