@@ -67,12 +67,18 @@ jobs:
           fi
           export PATH="$PATH:$SDK/latest/bin"
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
+
+          # Buildozer 1.5.0 expects sdkmanager at $SDK/tools/bin/sdkmanager.
+          # Install the legacy "tools" package via the new cmdline-tools so
+          # sdkmanager lands at the path Buildozer checks.
+          yes | sdkmanager --install "tools" "platform-tools" >/dev/null 2>&1 || true
+          ls "$SDK/tools/bin/" 2>&1 || true
+
           mkdir -p "$SDK/licenses"
           printf '\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n2433f8a3435a7489f644e5f1d78b16a7c9aa9b87\n' > "$SDK/licenses/android-sdk-license"
 
-          # Buildozer downloads its own SDK to ~/.buildozer/android/platform/android-sdk
-          # and its sdkmanager call checks licenses there. Symlink so it sees our SDK
-          # (where licenses are already accepted).
+          # Buildozer uses ~/.buildozer/android/platform/android-sdk — symlink
+          # to our SDK so its sdkmanager sees the same accepted licenses.
           mkdir -p "$HOME/.buildozer/android/platform"
           rm -rf "$HOME/.buildozer/android/platform/android-sdk"
           ln -s "$SDK" "$HOME/.buildozer/android/platform/android-sdk"
