@@ -30,9 +30,10 @@ RUN git clone --depth 1 https://github.com/pyenv/pyenv.git "$PYENV_ROOT" \
 RUN pyenv install 3.11.13 \
     && pyenv global 3.11.13
 
-# Install Buildozer and Cython for ARM cross-compile
+# Install Buildozer. Cython is pinned <3 because p4a's vendored pyjnius
+# uses the old `IF` Cython statement which was removed in Cython 3.
 RUN python -m pip install --upgrade pip setuptools wheel \
-    && python -m pip install buildozer==1.5.0 cython
+    && python -m pip install buildozer==1.5.0 "cython<3.0"
 
 WORKDIR /workspace
 CMD ["/bin/bash"]
