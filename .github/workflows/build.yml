@@ -1,0 +1,79 @@
+name: Build Android APK
+
+on:
+  # Trigger manually from the GitHub Actions tab — useful for iterating
+  # without spamming commits.
+  workflow_dispatch:
+  # Also rebuild on every push to main, so the artifact stays current.
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Cache the Buildozer download directory so SDK/NDK aren't redownloaded
+      # every run. Speeds up subsequent builds from ~25 min to ~5-8 min.
+      - name: Cache Buildozer downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3 python3-dev python3-pip python3-venv \
+            build-essential ccache git \
+            libffi-dev libssl-dev libsqlite3-dev \
+            autoconf automake libtool pkg-config \
+            unzip zip \
+            openjdk-17-jdk-headless \
+            libltdl-dev
+          pip3 install --break-system-packages --upgrade pip
+          pip3 install --break-system-packages \
+            buildozer==1.5.0 \
+            cython
+
+      - name: Build debug APK with Buildozer
+        run: |
+          # Buildozer writes the APK to ./bin/ — that's what we upload.
+          export GRADLE_OPTS="-Xmx2g -Dorg.gradle.daemon=false"
+          buildozer -v android debug 2>&1 | tee build.log
+
+      - name: Find APK output
+        id: locate
+        run: |
+          set -e
+          APK=$(find ./bin -maxdepth 1 -name "*.apk" | head -n 1)
+          if [ -z "$APK" ]; then
+            echo "::error::No APK found in ./bin"
+            exit 1
+          fi
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+          echo "APK at: $APK ($(du -h "$APK" | cut -f1))"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fittrack-debug-apk
+          path: ${{ steps.locate.outputs.apk_path }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload full build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          if-no-files-found: ignore
+          retention-days: 7
