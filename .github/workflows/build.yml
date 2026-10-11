@@ -52,6 +52,13 @@ jobs:
             -e 's/"cython>=0\.29"/"cython<3.0"/g' \
             -e "s/'cython>=0\.29'/'cython<3.0'/g" \
             {} +
+          # Replace `pip install -U pip` (which upgrades to pip 26.2.1,
+          # which has a broken BuildDependencyInstallError import) with
+          # a no-op. The venv's existing pip works fine for installing
+          # the pymodules.
+          find "$P4A_DIR" -type f -name '*.py' -exec sed -i \
+            -e 's|pip install -U pip|pip --version|g' \
+            {} +
           echo "=== Pillow references AFTER patch ==="
           grep -rn 'Pillow==' "$P4A_DIR" || echo "(no matches — clean)"
           echo "=== pyjnius references AFTER patch ==="
