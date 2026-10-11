@@ -69,7 +69,16 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           mkdir -p "$SDK/licenses"
           printf '\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n2433f8a3435a7489f644e5f1d78b16a7c9aa9b87\n' > "$SDK/licenses/android-sdk-license"
-          echo "Android SDK licenses accepted at $SDK"
+
+          # Buildozer downloads its own SDK to ~/.buildozer/android/platform/android-sdk
+          # and its sdkmanager call checks licenses there. Symlink so it sees our SDK
+          # (where licenses are already accepted).
+          mkdir -p "$HOME/.buildozer/android/platform"
+          rm -rf "$HOME/.buildozer/android/platform/android-sdk"
+          ln -s "$SDK" "$HOME/.buildozer/android/platform/android-sdk"
+          ls -la "$HOME/.buildozer/android/platform/"
+
+          echo "Android SDK ready: $SDK (symlinked into Buildozer path)"
 
       - name: Build debug APK with Buildozer
         env:
