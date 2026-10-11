@@ -21,8 +21,6 @@ source.dir = .
 
 # App version (bump when shipping new releases).
 version = 1.0.0
-version.regex = __version__ = '(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)'
-version.filename = %(source.dir)s/main.py
 
 # Numeric version codes for the store.
 android.numeric_version = 1
