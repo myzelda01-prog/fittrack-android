@@ -1,7 +1,6 @@
-# Custom Buildozer CI image — Python 3.11 (slim Debian) + Buildozer + Android
-# SDK + NDK + everything else Buildozer needs. Built fresh on first run,
-# cached for subsequent runs.
-FROM python:3.11-slim
+# Custom Buildozer CI image — Python 3.11 (Debian bullseye) + Buildozer +
+# Android SDK + NDK + everything Buildozer needs.
+FROM python:3.11-bullseye
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
