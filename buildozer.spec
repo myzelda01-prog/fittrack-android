@@ -16,8 +16,8 @@ source.filename = main.py
 source.dir = .
 
 # Resource directory (icon, splash, presets).
-# icon.filename = %(source.dir)s/icon.png
-# presplash.filename = %(source.dir)s/presplash.png
+icon.filename = %(source.dir)s/icon.png
+presplash.filename = %(source.dir)s/presplash.png
 
 # App version (bump when shipping new releases).
 version = 1.0.0

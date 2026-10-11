@@ -22,7 +22,9 @@ jobs:
       - name: Cache Buildozer downloads
         uses: actions/cache@v4
         with:
-          path: ~/.buildozer
+          path: |
+            ~/.buildozer
+            .android-sdk
           key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
           restore-keys: |
             buildozer-${{ runner.os }}-
@@ -43,10 +45,41 @@ jobs:
             buildozer==1.5.0 \
             cython
 
+      - name: Install Android command-line tools and accept SDK licenses
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/.android-sdk
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
+        run: |
+          set -e
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          cd "$ANDROID_HOME/cmdline-tools"
+          # Latest stable command-line tools
+          curl -fsSL -o tools.zip \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q tools.zip
+          rm tools.zip
+          # The zip extracts to ./cmdline-tools/* — move so we have ./latest/bin/sdkmanager
+          if [ -d latest ] && [ ! -d latest/bin ]; then
+            # already correct layout
+            :
+          elif [ -d cmdline-tools ]; then
+            mkdir -p latest
+            mv cmdline-tools/* latest/ 2>/dev/null || true
+            rmdir cmdline-tools 2>/dev/null || true
+          fi
+          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin"
+          # Auto-accept every license Buildozer will need.
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          echo "Android SDK licenses accepted."
+
       - name: Build debug APK with Buildozer
+        env:
+          ANDROID_HOME: ${{ github.workspace }}/.android-sdk
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/.android-sdk
+          GRADLE_OPTS: "-Xmx2g -Dorg.gradle.daemon=false"
         run: |
           # Buildozer writes the APK to ./bin/ — that's what we upload.
-          export GRADLE_OPTS="-Xmx2g -Dorg.gradle.daemon=false"
+          export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin"
           buildozer -v android debug 2>&1 | tee build.log
 
       - name: Find APK output
